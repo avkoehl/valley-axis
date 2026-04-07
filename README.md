@@ -1,56 +1,80 @@
-# Valley Axis
+# valley-axis
 
-Implementation of glacier centerline extraction algorithm from [Kienholz et al. (2014)](https://tc.copernicus.org/articles/8/503/2014/).
+Valley floor centerline extraction and continuous width computation for river corridors.
 
-![Example](./img/example.png)
-
-## TODO
-
-- [ ] Remove any detected inlets points that are not on the valley floor
-- [ ] Add option to remove inlets points that are not near any boundary
+Implements a least-cost path algorithm (adapted from the glacial centerlines
+method) to route valley axis centerlines through a valley floor mask, guided by
+a DEM and stream network. Valley widths are then computed via inverse distance
+weighting (IDW) from the centerline outward.
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.10 or higher
-- [Poetry (package manager)](https://python-poetry.org/)
-
-### Installing from Github
-
-1. Clone the repository
 ```bash
-git clone git@github.com:avkoehl/valleyaxis.git
-cd valleyaxis
+pip install git+https://github.com/avkoehl/valley-axis.git
 ```
 
-2. Install dependencies using Poetry
+For development:
+
 ```bash
-poetry install
+git clone https://github.com/avkoehl/valley-axis.git
+cd valley-axis
+uv sync --extra dev
 ```
 
-## Input Data Requirements
+## Inputs
 
-- **DEM**: Digital elevation model 
-- **Flowlines**: GeoDataFrame of linestrings 
-- **Valley Floor**: Polygon of valley floor extent
+| Input | Type | Description |
+|---|---|---|
+| `dem` | `xr.DataArray` | Digital elevation model with spatial metadata |
+| `region_raster` | `xr.DataArray` | Valley floor mask (1 = valid, 0 = outside) |
+| `flowlines` | `gpd.GeoDataFrame` | Stream network linestrings |
 
 ## Usage
 
-Here's a complete example showing how to extract valley centerlines:
-
 ```python
-import matplotlib.pyplot as plt
+import rioxarray
 import geopandas as gpd
-import rioxarray as rxr
+from valley_axis import derive_axis
 
-# Load input data
-dem = rxr.open_rasterio("./sample_data/1805000202-dem.tif", masked=True).squeeze()
-flowlines = gpd.read_file("./sample_data/1805000202-flowlines.shp")
-floor = gpd.read_file("./sample_data/floor.shp").geometry[0].buffer(0.01) 
-centerlines = valley_centerlines(dem, flowlines, floor, maxarea=0)
+dem = rioxarray.open_rasterio("dem.tif").squeeze()
+region = rioxarray.open_rasterio("region.tif").squeeze()
+flowlines = gpd.read_file("flowlines.gpkg")
+
+centerlines_gdf, centerlines_raster, widths_raster = derive_axis(dem, region, flowlines)
 ```
 
-## References
+### Outputs
 
-Kienholz, C., Rich, J. L., Arendt, A. A., and Hock, R.: A new method for deriving glacier centerlines applied to glaciers in Alaska and northwest Canada, The Cryosphere, 8, 503–519, https://doi.org/10.5194/tc-8-503-2014, 2014.
+- **`centerlines_gdf`** — `GeoDataFrame` of routed centerline segments as LineStrings
+- **`centerlines_raster`** — `xr.DataArray` raster of centerline segment IDs
+- **`widths_raster`** — `np.ndarray` of continuous valley widths (metres), NaN outside the mask
+
+### Cost function parameters
+
+The routing cost surface can be tuned via keyword arguments:
+
+```python
+centerlines_gdf, centerlines_raster, widths_raster = derive_axis(
+    dem, region, flowlines,
+    f1=1000, a=4.25,   # distance penalty: scale and exponent
+    f2=3000, b=3.5,    # elevation penalty: scale and exponent
+)
+```
+
+## Sample data
+
+```python
+import rioxarray
+import geopandas as gpd
+
+data = get_sample_data()
+dem = rioxarray.open_rasterio(data["dem"]).squeeze()
+region = rioxarray.open_rasterio(data["region"]).squeeze()
+flowlines = gpd.read_file(data["flowlines"])
+```
+
+See `examples/valley_axis_demo.ipynb` for a full walkthrough.
+
+## Reference
+
+Kienholz, C., Rich, J. L., Arendt, A. A., & Hock, R. (2014). A new method for deriving glacier centerlines applied to glaciers in Alaska and northwest Canada. *The Cryosphere*, 8(2), 503–519. https://doi.org/10.5194/tc-8-503-2014

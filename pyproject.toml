@@ -1,28 +1,41 @@
-[tool.poetry]
-name = "valleyaxis"
-version = "0.1.0"
-description = "extract centerlines for a valley network"
-authors = ["Arthur Koehl <avkoehl@ucdavis.edu>"]
-license = "MIT"
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.10"
-shapely = "^2.0.7"
-geopandas = "^1.0.1"
-scipy = "^1.15.1"
-tqdm = "^4.67.1"
-numpy = "<2.2"
-rasterio = "^1.4.3"
-rioxarray = ">=0.17.0"
-scikit-image = ">=0.24.0,<0.26.0"
-shapelysmooth = "^0.2.1"
-
-
-[tool.poetry.group.dev.dependencies]
-matplotlib = "^3.10.0"
-ipython = "^8.32.0"
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "valley-axis"
+version = "0.1.0"
+description = "Valley floor centerline extraction and width computation based on the glacial centerlines algorithm."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["geomorphology", "valley", "centerline", "width", "GIS", "raster"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "scikit-image",
+    "networkx",
+    "rasterio",
+    "shapely",
+    "geopandas",
+    "xarray",
+    "rioxarray",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "jupyter",
+    "matplotlib",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["valley_axis"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"valley_axis/sample_data" = "valley_axis/sample_data"
