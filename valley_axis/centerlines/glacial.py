@@ -9,6 +9,10 @@ def build_cost_graph(
 ):
     """
     Computes the penalty surface and initializes the MCP_Geometric routing object.
+    Kienholz et al. (2014) approach:
+    A new method for deriving glacier centerlines from digital elevation
+    models, with an application to glaciers in Alaska. The Cryosphere, 8(2), 503-519,
+    https://doi.org/10.5194/tc-8-503-2014
     """
     # 1. Distance penalty
     distance = distance_transform_edt(mask_array) * pixel_size

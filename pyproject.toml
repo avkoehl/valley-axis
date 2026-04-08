@@ -5,10 +5,9 @@ build-backend = "hatchling.build"
 [project]
 name = "valley-axis"
 version = "0.1.0"
-description = "Valley floor centerline extraction and width computation based on the glacial centerlines algorithm."
+description = "Valley floor centerline extraction and width computation."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
 keywords = ["geomorphology", "valley", "centerline", "width", "GIS", "raster"]
 classifiers = [
     "Programming Language :: Python :: 3",
