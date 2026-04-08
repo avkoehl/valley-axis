@@ -3,6 +3,7 @@
 cache/
 data/
 run.py
+output
 
 *.gpkg-wal
 *.gpkg-shm
