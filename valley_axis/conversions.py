@@ -1,6 +1,6 @@
 import numpy as np
 import geopandas as gpd
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 import rasterio
 import networkx as nx
 
@@ -62,3 +62,23 @@ def segments_to_raster(all_segments, base_raster):
             segment_id += 1
 
     return base_raster.copy(data=raster_array)
+
+
+def networks_dict_to_gdf(networks_dict, transform, crs):
+    records = []
+    for net_id, (inlets, outlet) in networks_dict.items():
+        for row, col in inlets:
+            x, y = rasterio.transform.xy(transform, row, col)
+            records.append(
+                {"network_id": net_id, "type": "inlet", "geometry": Point(x, y)}
+            )
+        row, col = outlet
+        x, y = rasterio.transform.xy(transform, row, col)
+        records.append(
+            {"network_id": net_id, "type": "outlet", "geometry": Point(x, y)}
+        )
+
+    if not records:
+        return gpd.GeoDataFrame(columns=["network_id", "type", "geometry"], crs=crs)
+
+    return gpd.GeoDataFrame(records, crs=crs)

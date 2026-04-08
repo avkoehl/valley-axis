@@ -1,10 +1,36 @@
 import geopandas as gpd
 import networkx as nx
 import rasterio
+from rasterio.features import shapes
 from shapely.geometry import Point
+from shapely.geometry import shape
+from shapely.ops import unary_union
 import xarray as xr
 
 from .conversions import lines_to_network
+
+
+def align_inputs(dem, region, flowlines):
+    dem = dem.rio.reproject_match(region)
+    flowlines = flowlines.to_crs(dem.rio.crs)
+    valid_mask = (dem != dem.rio.nodata) & (region != region.rio.nodata)
+    dem = dem.where(valid_mask, dem.rio.nodata)
+    region = region.where(valid_mask, region.rio.nodata)
+
+    polygons = [
+        shape(geom)
+        for geom, val in shapes(
+            valid_mask.values.astype("uint8"),
+            transform=region.rio.transform(),
+            connectivity=8,
+        )
+        if val == 1
+    ]
+    valid_geom = unary_union(polygons)
+    flowlines = (
+        flowlines.clip(valid_geom).explode(index_parts=False).reset_index(drop=True)
+    )
+    return dem, region, flowlines
 
 
 def identify_network_pixels(
@@ -73,7 +99,7 @@ def _assign_network_ids(flowlines):
         return flowlines
 
     flowlines["network_id"] = None
-    for i, outlet in enumerate(outlets):
+    for i, outlet in enumerate(outlets, start=1):
         upstream = nx.ancestors(graph, outlet)
         upstream.add(outlet)
         subgraph = graph.subgraph(upstream)
@@ -110,14 +136,13 @@ def _find_network_endpoints(single_network_gdf):
     return inflows, outlet
 
 
-def _point_to_valid_pixel(point, transform, mask_array):
-    """
-    Converts a spatial Point to a pixel (row, col).
-    Returns (row, col) if within bounds and mask value == 1, else None.
-    """
+def _point_to_valid_pixel(point, transform, mask_array, search_radius=3):
     r, c = rasterio.transform.rowcol(transform, point.x, point.y)
     height, width = mask_array.shape
 
-    if 0 <= r < height and 0 <= c < width and mask_array[r, c] == 1:
-        return (r, c)
+    for dr in range(-search_radius, search_radius + 1):
+        for dc in range(-search_radius, search_radius + 1):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < height and 0 <= nc < width and mask_array[nr, nc] == 1:
+                return (nr, nc)
     return None

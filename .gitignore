@@ -2,6 +2,7 @@
 *.pdf
 cache/
 data/
+run.py
 
 # vim
 [._]*.s[a-v][a-z]
