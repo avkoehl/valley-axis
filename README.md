@@ -4,7 +4,7 @@ Derives valley centerlines and computes continuous valley width across a valley
 floor mask. Designed for river corridor analysis where valley setting needs to
 be characterized across a watershed.
 
-![Valley width example](img/example.jpg)
+![Valley width example](img/example.png)
 
 ## Installation
 

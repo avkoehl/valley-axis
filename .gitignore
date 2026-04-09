@@ -7,6 +7,7 @@ output
 
 *.gpkg-wal
 *.gpkg-shm
+*.tif.aux.xml
 
 # vim
 [._]*.s[a-v][a-z]
