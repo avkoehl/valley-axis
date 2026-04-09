@@ -3,7 +3,7 @@ from scipy.ndimage import distance_transform_edt
 from scipy.spatial import cKDTree
 
 
-def compute_idw(centerline_array, mask_array, pixel_size, k=5, power=2):
+def compute_idw(centerline_array, mask_array, pixel_size, k=10, power=0.75):
     """Computes continuous valley widths using IDW from the centerline distances."""
     # 1. Distance transform to find valley radius (distance to nearest 0)
     # edt treats 0 as background, so we ensure the mask is strictly boolean
