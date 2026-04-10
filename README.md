@@ -17,7 +17,7 @@ With development dependencies:
 ```bash
 git clone https://github.com/avkoehl/valley-axis.git
 cd valley-axis
-uv sync --dev
+uv sync --extra dev
 ```
 
 install jupyter kernel:

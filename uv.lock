@@ -2442,6 +2442,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "ipykernel" },
     { name = "jupyter" },
     { name = "matplotlib" },
     { name = "pytest" },
@@ -2450,6 +2451,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "geopandas" },
+    { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jupyter", marker = "extra == 'dev'" },
     { name = "matplotlib", marker = "extra == 'dev'" },
     { name = "networkx" },

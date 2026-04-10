@@ -22,7 +22,11 @@ def measure_width(
     )
 
     widths = get_widths(
-        centerlines_raster, region_raster, method=width_method, **width_kwargs
+        centerlines_raster,
+        region_raster,
+        method=width_method,
+        centerlines_gdf=centerlines_gdf,
+        **width_kwargs,
     )
 
     return centerlines_gdf, centerlines_raster, widths

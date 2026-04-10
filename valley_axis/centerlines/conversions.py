@@ -79,20 +79,21 @@ def build_gdf(labeled_segments, transform, crs) -> gpd.GeoDataFrame:
 
 
 def build_raster(labeled_segments, region_raster: xr.DataArray) -> xr.DataArray:
-    """Burns the centerlines back into a raster array using Strahler order."""
+    """Burns the centerlines back into a raster array using segment_id."""
     out_shape = region_raster.shape
-    centerline_array = np.zeros(out_shape, dtype=np.uint16)
+    # Use uint32 in case you have more than 65,535 segments!
+    centerline_array = np.zeros(out_shape, dtype=np.uint32)
 
+    segment_id = 1
     for net_id, feature_list in labeled_segments.items():
         for feature in feature_list:
-            pixel_val = feature["strahler_order"]
-
             for r, c in feature["nodes"]:
                 if 0 <= r < out_shape[0] and 0 <= c < out_shape[1]:
-                    current_val = centerline_array[r, c]
-                    # Retain the highest Strahler order at junctions
-                    if current_val == 0 or pixel_val > current_val:
-                        centerline_array[r, c] = pixel_val
+                    # At junctions, the later segment will overwrite the pixel.
+                    # This is fine since it's just the exact junction pixel.
+                    centerline_array[r, c] = segment_id
+
+            segment_id += 1
 
     centerlines_da = xr.DataArray(
         centerline_array,
