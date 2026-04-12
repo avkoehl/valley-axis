@@ -11,25 +11,25 @@ def measure_width(
     flowlines: gpd.GeoDataFrame,
     centerline_method: str = "mcp",
     width_method: str = "laplace",
+    segmentation: bool = True,
     centerline_kwargs: dict | None = None,
     width_kwargs: dict | None = None,
-) -> tuple[gpd.GeoDataFrame, xr.DataArray, xr.DataArray]:
+) -> tuple[gpd.GeoDataFrame, xr.DataArray, xr.DataArray, xr.DataArray]:
     centerline_kwargs = centerline_kwargs or {}
     width_kwargs = width_kwargs or {}
 
-    centerlines_gdf, centerlines_raster = get_centerlines(
+    centerlines_gdf, centerlines_raster, path_map = get_centerlines(
         dem, region_raster, flowlines, method=centerline_method, **centerline_kwargs
     )
-
     widths = get_widths(
         centerlines_raster,
         region_raster,
         method=width_method,
-        centerlines_gdf=centerlines_gdf,
+        path_map=path_map if segmentation else None,
         **width_kwargs,
     )
 
-    return centerlines_gdf, centerlines_raster, widths
+    return centerlines_gdf, centerlines_raster, path_map, widths
 
 
 __all__ = ["measure_width", "get_centerlines", "get_widths"]

@@ -1,17 +1,13 @@
 import numpy as np
 import xarray as xr
-import geopandas as gpd
+from scipy.ndimage import distance_transform_edt
 
-from .idw import compute_idw
-from .voronoi import compute_voronoi
-from .laplace import compute_laplace
-from .hierarchical import compute_hierarchical_voronoi
+from .interpolation import compute_voronoi, compute_idw, compute_laplace
 
 _METHODS = {
-    "idw": compute_idw,
     "voronoi": compute_voronoi,
+    "idw": compute_idw,
     "laplace": compute_laplace,
-    "hierarchical": compute_hierarchical_voronoi,
 }
 
 
@@ -19,34 +15,41 @@ def get_widths(
     centerlines_raster: xr.DataArray,
     region_raster: xr.DataArray,
     method: str = "laplace",
-    centerlines_gdf: gpd.GeoDataFrame | None = None,
+    path_map: xr.DataArray | None = None,
     **kwargs,
 ) -> xr.DataArray:
     if method not in _METHODS:
         raise ValueError(f"method must be one of {list(_METHODS)}, got '{method}'")
 
+    fn = _METHODS[method]
     pixel_size = float(abs(region_raster.rio.resolution()[0]))
-    mask = region_raster.values == 1
+    mask_array = region_raster.values == 1
+    centerline_array = centerlines_raster.values
 
-    # -- Dispatch Logic --
-    if method == "hierarchical":
-        if centerlines_gdf is None:
-            raise ValueError(
-                "The 'hierarchical' method requires 'centerlines_gdf' to be provided."
-            )
-        result, _ = _METHODS[method](
-            centerline_array=centerlines_raster.values,
-            mask_array=mask,
-            pixel_size=pixel_size,
-            centerlines_gdf=centerlines_gdf,
-        )
+    # Compute exact widths once from the full valley mask
+    radius_pixels = distance_transform_edt(mask_array)
+    centerline_widths = np.where(
+        centerline_array > 0, radius_pixels * pixel_size * 2, 0.0
+    )
+
+    out = np.full(mask_array.shape, np.nan, dtype=np.float64)
+
+    if path_map is not None:
+        path_ids = np.unique(path_map.values[mask_array])
+        for path_id in path_ids:
+            region_mask = (path_map.values == path_id) & mask_array
+            region_centerlines = np.where(region_mask, centerline_array, 0)
+
+            if not np.any(region_centerlines > 0):
+                continue
+
+            result = fn(region_centerlines, region_mask, centerline_widths, **kwargs)
+            out[region_mask] = result[region_mask]
     else:
-        # Standard methods
-        result = _METHODS[method](centerlines_raster.values, mask, pixel_size, **kwargs)
+        out = fn(centerline_array, mask_array, centerline_widths, **kwargs)
 
-    # -- Format Output --
-    widths = xr.DataArray(result, coords=region_raster.coords, dims=region_raster.dims)
-    widths = widths.where(mask)
+    widths = xr.DataArray(out, coords=region_raster.coords, dims=region_raster.dims)
+    widths = widths.where(mask_array)
     widths = widths.rio.write_crs(region_raster.rio.crs)
     widths = widths.rio.write_nodata(np.nan)
 

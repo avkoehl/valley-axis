@@ -2105,6 +2105,16 @@ wheels = [
 ]
 
 [[package]]
+name = "scikit-fmm"
+version = "2025.6.23"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/94/3b2969fc1f64a5faafad03c421ed200e717fc99c556985da0a17822f868d/scikit_fmm-2025.6.23.tar.gz", hash = "sha256:a3208f5f3881e40b7878d1121ba39b8d57f1bc38fb4e5f0d9d1c66a9b007e44f", size = 467753, upload-time = "2025-06-23T19:04:13.366Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c0/10/093e76640c8c6efae5e42203e92e86cb3e5dceaa3dcb8ac0733a1f817c64/scikit_fmm-2025.6.23-cp312-cp312-win_amd64.whl", hash = "sha256:859e5076d09f5d9b87d3d6fdc08652b714b43c5ad31523e5d58b28abdc9ced5b", size = 69261, upload-time = "2025-06-23T19:04:11.187Z" },
+    { url = "https://files.pythonhosted.org/packages/52/2c/7aac8f88a20df085aeaa5802de8c8958a02d33715652b69d5ef90bc41b8b/scikit_fmm-2025.6.23-cp313-cp313-win_amd64.whl", hash = "sha256:a5f291db66949f15a68cc3e472c73e50ceb70d5ecb49eb364f55befdcbdcbc6e", size = 68454, upload-time = "2025-06-23T19:04:12.222Z" },
+]
+
+[[package]]
 name = "scikit-image"
 version = "0.26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2434,6 +2444,7 @@ dependencies = [
     { name = "numpy" },
     { name = "rasterio" },
     { name = "rioxarray" },
+    { name = "scikit-fmm" },
     { name = "scikit-image" },
     { name = "scipy" },
     { name = "shapely" },
@@ -2459,6 +2470,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "rasterio" },
     { name = "rioxarray" },
+    { name = "scikit-fmm", specifier = ">=2025.6.23" },
     { name = "scikit-image" },
     { name = "scipy" },
     { name = "shapely" },

@@ -116,7 +116,7 @@ def calculate_hierarchy(segments):
                 # Each feature is now exactly one true segment (reach)
                 labeled_features.append(
                     {
-                        "path_label": f"Path_{current_path_id}",
+                        "path_label": current_path_id,
                         "strahler_order": strahler[rid],
                         "nodes": reaches[rid],
                     }

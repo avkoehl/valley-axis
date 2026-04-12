@@ -31,28 +31,17 @@ uv run python -m ipykernel install --user --name=valley-axis
 import valley_axis as va
 
 # Full workflow
-centerlines_gdf, centerlines_raster, widths = va.measure_width(
+centerlines_gdf, centerlines_raster, path_map, widths = va.measure_width(
     dem=dem,
     region_raster=region_mask,
     flowlines=flowlines,
     centerline_method="mcp",   # or "skeleton"
     width_method="laplace",    # or "idw", "voronoi"
+    segmentation = True, 
+    centerline_kwargs = {},
+    width_kwargs = {}
 )
 
-# Centerlines only
-centerlines_gdf, centerlines_raster = va.get_centerlines(
-    dem=dem,
-    region_raster=region_mask,
-    flowlines=flowlines,
-    method="mcp",
-)
-
-# Widths from existing centerlines
-widths = va.get_widths(
-    centerlines_raster=centerlines_raster,
-    region_raster=region_mask,
-    method="laplace",
-)
 ```
 
 **Inputs**
@@ -63,6 +52,7 @@ widths = va.get_widths(
 **Outputs**
 - `centerlines_gdf`: `geopandas.GeoDataFrame` — vector centerlines
 - `centerlines_raster`: `xarray.DataArray` — rasterized centerlines
+- `path_map`: `xarray.DataArray` — integer raster partitioning the valley floor into segments associated with each centerline path 
 - `widths`: `xarray.DataArray` — continuous valley width in meters across the full valley floor
 
 ## References
