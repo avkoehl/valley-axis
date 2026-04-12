@@ -9,7 +9,7 @@ def measure_width(
     dem: xr.DataArray,
     region_raster: xr.DataArray,
     flowlines: gpd.GeoDataFrame,
-    centerline_method: str = "mcp",
+    centerline_method: str = "skeleton",
     width_method: str = "laplace",
     segmentation: bool = True,
     centerline_kwargs: dict | None = None,
