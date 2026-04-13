@@ -16,6 +16,7 @@ def get_widths(
     region_raster: xr.DataArray,
     method: str = "laplace",
     path_map: xr.DataArray | None = None,
+    path_to_segments: dict | None = None,
     **kwargs,
 ) -> xr.DataArray:
     if method not in _METHODS:
@@ -38,7 +39,15 @@ def get_widths(
         path_ids = np.unique(path_map.values[mask_array])
         for path_id in path_ids:
             region_mask = (path_map.values == path_id) & mask_array
-            region_centerlines = np.where(region_mask, centerline_array, 0)
+
+            if path_to_segments is None:
+                raise ValueError(
+                    "segment_to_path must be provided when path_map is used"
+                )
+            seg_ids = path_to_segments[path_id]
+            region_centerlines = np.where(
+                np.isin(centerline_array, seg_ids), centerline_array, 0
+            )
 
             if not np.any(region_centerlines > 0):
                 continue

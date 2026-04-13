@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import xarray as xr
 import geopandas as gpd
 
@@ -21,11 +23,19 @@ def measure_width(
     centerlines_gdf, centerlines_raster, path_map = get_centerlines(
         dem, region_raster, flowlines, method=centerline_method, **centerline_kwargs
     )
+
+    path_to_segments = defaultdict(list)
+    for seg_id, path_id in zip(
+        centerlines_gdf["segment_id"], centerlines_gdf["path_label"]
+    ):
+        path_to_segments[path_id].append(seg_id)
+
     widths = get_widths(
         centerlines_raster,
         region_raster,
         method=width_method,
         path_map=path_map if segmentation else None,
+        path_to_segments=path_to_segments if segmentation else None,
         **width_kwargs,
     )
 
