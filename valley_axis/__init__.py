@@ -1,45 +1,46 @@
-from collections import defaultdict
+from dataclasses import dataclass
 
 import xarray as xr
-import geopandas as gpd
 
-from .centerlines import get_centerlines
+from .centerlines import get_centerlines, Centerlines
+from .allocation import get_allocation
 from .widths import get_widths
+from .helpers import flowlines_to_endpoints, fill_holes
 
 
-def measure_width(
-    dem: xr.DataArray,
-    region_raster: xr.DataArray,
-    flowlines: gpd.GeoDataFrame,
-    centerline_method: str = "skeleton",
+@dataclass
+class ValleyResult:
+    centerlines: Centerlines
+    allocation: xr.DataArray
+    widths: xr.DataArray
+
+
+def measure_valley(
+    mask: xr.DataArray,
+    networks: list[tuple[list[tuple[int, int]], tuple[int, int]]],
     width_method: str = "laplace",
-    segmentation: bool = True,
-    centerline_kwargs: dict | None = None,
-    width_kwargs: dict | None = None,
-) -> tuple[gpd.GeoDataFrame, xr.DataArray, xr.DataArray, xr.DataArray]:
-    centerline_kwargs = centerline_kwargs or {}
-    width_kwargs = width_kwargs or {}
+    inlet_distance_threshold: float = 100.0,
+) -> ValleyResult:
+    """
+    Full pipeline: centerlines → segment allocation → widths.
 
-    centerlines_gdf, centerlines_raster, path_map = get_centerlines(
-        dem, region_raster, flowlines, method=centerline_method, **centerline_kwargs
+    See individual functions for details on each step.
+    """
+    centerlines = get_centerlines(
+        mask, networks, inlet_distance_threshold=inlet_distance_threshold
     )
-
-    path_to_segments = defaultdict(list)
-    for seg_id, path_id in zip(
-        centerlines_gdf["segment_id"], centerlines_gdf["path_label"]
-    ):
-        path_to_segments[path_id].append(seg_id)
-
-    widths = get_widths(
-        centerlines_raster,
-        region_raster,
-        method=width_method,
-        path_map=path_map if segmentation else None,
-        path_to_segments=path_to_segments if segmentation else None,
-        **width_kwargs,
-    )
-
-    return centerlines_gdf, centerlines_raster, path_map, widths
+    allocation = get_allocation(centerlines, mask)
+    widths = get_widths(centerlines, mask, allocation=allocation, method=width_method)
+    return ValleyResult(centerlines=centerlines, allocation=allocation, widths=widths)
 
 
-__all__ = ["measure_width", "get_centerlines", "get_widths"]
+__all__ = [
+    "measure_valley",
+    "get_centerlines",
+    "get_allocation",
+    "get_widths",
+    "flowlines_to_endpoints",
+    "fill_holes",
+    "Centerlines",
+    "ValleyResult",
+]
