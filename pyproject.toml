@@ -40,3 +40,8 @@ packages = ["valley_axis"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "valley_axis/sample_data" = "valley_axis/sample_data"
+
+[dependency-groups]
+dev = [
+    "snakeviz>=2.2.2",
+]

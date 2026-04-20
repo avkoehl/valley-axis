@@ -5,6 +5,8 @@ data/
 run.py
 output
 
+profile_run.py
+
 *.gpkg-wal
 *.gpkg-shm
 *.tif.aux.xml

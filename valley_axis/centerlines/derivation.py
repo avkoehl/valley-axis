@@ -113,16 +113,19 @@ def _route_raw_paths(graph, snapped_inlets, snapped_outlet):
     raw_paths = [snapped_outlet["path"]]
     out_node = snapped_outlet["snap_point"]
 
+    if out_node not in graph:
+        return raw_paths
+
+    # Single Dijkstra from outlet; paths to all reachable nodes.
+    paths_from_outlet = nx.single_source_dijkstra_path(graph, out_node, weight="weight")
+
     for data in snapped_inlets.values():
         raw_paths.append(data["path"])
-        try:
-            raw_paths.append(
-                nx.shortest_path(
-                    graph, source=data["snap_point"], target=out_node, weight="weight"
-                )
-            )
-        except nx.NetworkXNoPath:
-            continue
+        snap_point = data["snap_point"]
+        path = paths_from_outlet.get(snap_point)
+        if path is not None:
+            # outlet→inlet reversed gives inlet→outlet
+            raw_paths.append(path[::-1])
     return raw_paths
 
 
