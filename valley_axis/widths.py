@@ -17,43 +17,32 @@ def get_widths(
 ) -> xr.DataArray:
     """
     Compute valley width at every pixel of the mask.
-
     Exact widths are taken at centerline pixels (2 * distance-to-edge) and
     interpolated across the mask. When `allocation` is provided (a
-    segment-labeled raster), each path's region (union of its segments'
-    territories) is interpolated independently — preserving continuity
-    along paths while respecting boundaries between paths.
-
+    path-labeled raster), each path's territory is interpolated independently
+    — preserving continuity along paths while respecting boundaries between
+    paths.
     method: "laplace" (smooth diffusion) or "nearest" (Voronoi NN).
     """
     if method not in ("laplace", "nearest"):
         raise ValueError(f"method must be 'laplace' or 'nearest', got '{method}'")
-
     interp = _laplace if method == "laplace" else _nearest
     pixel_size = float(abs(mask.rio.resolution()[0]))
     mask_array = mask.values == 1
-
     path_raster = centerlines.label_by_path()
     path_centerline_array = path_raster.values
-
-    # Exact widths at centerline pixels: diameter of the inscribed circle.
     radius_pixels = distance_transform_edt(mask_array)
     centerline_widths = np.where(
         path_centerline_array > 0, radius_pixels * pixel_size * 2, 0.0
     )
-
     out = np.full(mask_array.shape, np.nan, dtype=np.float64)
-
     if allocation is None:
         result = interp(path_centerline_array, mask_array, centerline_widths)
         out[mask_array] = result[mask_array]
     else:
-        # allocation is segment-labeled; group segments by path via the df.
         alloc = allocation.values
-        df = centerlines.segments
-        for path_id, group in df.groupby("path_label"):
-            seg_ids = group["segment_id"].values
-            region_mask = np.isin(alloc, seg_ids) & mask_array
+        for path_id in np.unique(alloc[alloc > 0]):
+            region_mask = (alloc == path_id) & mask_array
             region_centerlines = np.where(
                 path_centerline_array == path_id, path_centerline_array, 0
             )
@@ -61,7 +50,6 @@ def get_widths(
                 continue
             result = interp(region_centerlines, region_mask, centerline_widths)
             out[region_mask] = result[region_mask]
-
     widths = xr.DataArray(out, coords=mask.coords, dims=mask.dims, attrs=mask.attrs)
     widths = widths.where(mask_array)
     widths.rio.write_crs(mask.rio.crs, inplace=True)

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import xarray as xr
 
 from .centerlines import get_centerlines, Centerlines
-from .allocation import get_allocation
+from .allocation import get_allocation, subdivide_paths_into_segments
 from .widths import get_widths
 from .helpers import flowlines_to_endpoints, fill_holes
 
@@ -39,6 +39,7 @@ __all__ = [
     "get_centerlines",
     "get_allocation",
     "get_widths",
+    "subdivide_paths_into_segments",
     "flowlines_to_endpoints",
     "fill_holes",
     "Centerlines",
