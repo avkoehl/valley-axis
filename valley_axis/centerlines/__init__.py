@@ -52,12 +52,17 @@ class Centerlines:
         return self._burn("segment_id")
 
     def label_by_path(self) -> xr.DataArray:
-        """Raster labeled by path_label. Main stem wins at junctions."""
-        return self._burn("path_label")
+        """Raster labeled by path_uid (globally unique across networks).
+
+        Main stem wins at junctions.
+        """
+        return self._burn("path_uid")
 
     def _burn(self, column: str) -> xr.DataArray:
         # Descending path_label write order: highest (tributary) first, lowest
         # (main stem continuation) last — so main stem wins at junction pixels.
+        # path_label is per-network; across disconnected networks pixels don't
+        # overlap, so global sort on path_label is still correct.
         arr = np.zeros(self.raster.shape, dtype=np.uint32)
         if not self.segments.empty:
             ordered = self.segments.sort_values("path_label", ascending=False)
@@ -79,7 +84,7 @@ def get_centerlines(
 
     Returns a Centerlines object holding:
       - raster: binary centerline footprint (uint8, 0/1)
-      - segments: DataFrame with segment_id, network_id, path_label,
+      - segments: DataFrame with segment_id, network_id, path_label, path_uid,
         strahler_order, downstream_segment_id, length, pixels
     """
     pixel_size = float(abs(mask.rio.resolution()[0]))

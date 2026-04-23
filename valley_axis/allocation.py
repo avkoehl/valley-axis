@@ -16,10 +16,15 @@ def get_allocation(centerlines, mask):
     claimed = np.zeros_like(mask_array, dtype=bool)
     radius_map = distance_transform_edt(mask_array)
 
-    path_labels = np.sort(np.unique(centerlines.segments["path_label"]))
+    # Order by (network_id, path_label) so each network's mainstem is
+    # processed before its tributaries. path_uid is the globally-unique
+    # integer we actually write into the raster.
+    ordered = centerlines.segments[["network_id", "path_label", "path_uid"]].drop_duplicates()
+    ordered = ordered.sort_values(["network_id", "path_label"])
+    path_uids = ordered["path_uid"].tolist()
 
-    for path_label in path_labels:
-        tier_seeds = (path_array == path_label) & ~claimed
+    for path_uid in path_uids:
+        tier_seeds = (path_array == path_uid) & ~claimed
         if not tier_seeds.any():
             continue
         phi = np.ones_like(mask_array, dtype=float)
@@ -36,7 +41,7 @@ def get_allocation(centerlines, mask):
         claim = mask_array & ~claimed & ~dist_mask & (dist.data <= ext_radius.data)
         if not claim.any():
             continue
-        allocation[claim] = path_label
+        allocation[claim] = path_uid
         claimed |= claim
 
     unclaimed = mask_array & ~claimed
@@ -59,8 +64,8 @@ def subdivide_paths_into_segments(path_allocation, centerlines):
 
     out_array = np.zeros(path_alloc_array.shape, dtype=np.uint32)
 
-    for path_label, group in segments_df.groupby("path_label"):
-        territory = path_alloc_array == path_label
+    for path_uid, group in segments_df.groupby("path_uid"):
+        territory = path_alloc_array == path_uid
         if not territory.any():
             continue
         seeds = territory & np.isin(segment_array, group["segment_id"].to_numpy())

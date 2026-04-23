@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import networkx as nx
+from collections import deque
 
 
 Segment = list[tuple[int, int]]
@@ -17,12 +18,14 @@ def annotate_segments(
     (row, col) pixel tuples, upstream→downstream.
 
     Returns a DataFrame with columns: segment_id, network_id, path_label,
-    strahler_order, downstream_segment_id, length, pixels. Segment ids and
-    path labels are globally unique across networks.
+    path_uid, strahler_order, downstream_segment_id, length, pixels. Segment
+    ids are globally unique; path_label resets per network (path_label == 1
+    is the mainstem of that network, Strahler-first with upstream-length
+    tiebreak). path_uid is a globally unique integer key for each
+    (network_id, path_label) pair — use it for rasterization and groupbys.
     """
     records = []
     segment_id_start = 1
-    path_label_offset = 0
 
     for net_idx, segments in enumerate(segments_by_network, start=1):
         if not segments:
@@ -33,26 +36,25 @@ def annotate_segments(
             pixel_size=pixel_size,
             network_id=net_idx,
             segment_id_start=segment_id_start,
-            path_label_offset=path_label_offset,
         )
         records.extend(net_records)
         segment_id_start += len(net_records)
-        path_label_offset = max(r["path_label"] for r in net_records)
 
     segments_df = pd.DataFrame(records)
     if not segments_df.empty:
         segments_df["downstream_segment_id"] = segments_df[
             "downstream_segment_id"
         ].astype("Int64")
+        segments_df["path_uid"] = (
+            segments_df.groupby(["network_id", "path_label"], sort=True).ngroup() + 1
+        )
     return segments_df
 
 
 # -- per-network annotation -------------------------------------------------
 
 
-def _annotate_one_network(
-    segments, pixel_size, network_id, segment_id_start, path_label_offset
-):
+def _annotate_one_network(segments, pixel_size, network_id, segment_id_start):
     start_map = {seg[0]: i for i, seg in enumerate(segments)}
     reach_graph = nx.DiGraph()
     reach_graph.add_nodes_from(range(len(segments)))
@@ -64,7 +66,7 @@ def _annotate_one_network(
             downstream_local[i] = start_map[end]
 
     strahler = _strahler(reach_graph)
-    local_path = _claim_paths(reach_graph, segments)
+    local_path = _claim_paths(reach_graph, segments, strahler, pixel_size)
 
     records = []
     for i, seg in enumerate(segments):
@@ -74,7 +76,7 @@ def _annotate_one_network(
             {
                 "segment_id": segment_id_start + i,
                 "network_id": network_id,
-                "path_label": path_label_offset + local_path[i],
+                "path_label": local_path[i],
                 "strahler_order": strahler[i],
                 "downstream_segment_id": ds_global,
                 "length": _segment_length(seg, pixel_size),
@@ -102,34 +104,59 @@ def _strahler(reach_graph):
     return strahler
 
 
-def _claim_paths(reach_graph, segments):
-    """Greedy main-stem path labeling: longest headwater→outlet path claims first."""
-    headwaters = [n for n in reach_graph.nodes() if reach_graph.in_degree(n) == 0]
+def _claim_paths(reach_graph, segments, strahler, pixel_size):
+    """Label paths within a single network.
+
+    Walks upstream from each outlet, picking the highest-Strahler predecessor
+    at each junction (upstream-length tiebreak). Non-main branches become
+    subsequent paths. Ordering is deterministic: longer branches get lower
+    path_ids, so path_label == 1 is the mainstem of this network.
+    """
+    # upstream length per reach: longest headwater->this, including own length
+    upstream_length = {}
+    for rid in nx.topological_sort(reach_graph):
+        own = _segment_length(segments[rid], pixel_size)
+        preds = list(reach_graph.predecessors(rid))
+        upstream_length[rid] = own + (
+            max(upstream_length[p] for p in preds) if preds else 0.0
+        )
+
+    path_id = {}
+    next_id = 1
     outlets = [n for n in reach_graph.nodes() if reach_graph.out_degree(n) == 0]
+    # process longest outlet first so its mainstem gets id 1
+    outlets.sort(key=lambda o: upstream_length.get(o, 0), reverse=True)
+    queue = deque(outlets)
 
-    candidates = []
-    for hw in headwaters:
-        for out in outlets:
-            try:
-                path = nx.shortest_path(reach_graph, source=hw, target=out)
-                plen = sum(len(segments[r]) for r in path)
-                candidates.append((plen, path))
-            except nx.NetworkXNoPath:
-                continue
-    candidates.sort(key=lambda x: x[0], reverse=True)
-
-    reach_to_path = {}
-    current = 1
-    for _, path in candidates:
-        claimed_any = False
-        for rid in path:
-            if rid in reach_to_path:
+    while queue:
+        start = queue.popleft()
+        if start in path_id:
+            continue
+        current = start
+        while True:
+            path_id[current] = next_id
+            preds = [p for p in reach_graph.predecessors(current) if p not in path_id]
+            if not preds:
                 break
-            reach_to_path[rid] = current
-            claimed_any = True
-        if claimed_any:
-            current += 1
-    return reach_to_path
+            max_s = max(strahler[p] for p in preds)
+            candidates = [p for p in preds if strahler[p] == max_s]
+            if len(candidates) == 1:
+                main = candidates[0]
+            else:
+                max_len = max(upstream_length[p] for p in candidates)
+                main = next(p for p in candidates if upstream_length[p] == max_len)
+            # non-main branches become subsequent paths; longer first
+            siblings = sorted(
+                [p for p in preds if p != main],
+                key=lambda x: upstream_length[x],
+                reverse=True,
+            )
+            for p in siblings:
+                queue.append(p)
+            current = main
+        next_id += 1
+
+    return path_id
 
 
 def _segment_length(pixels, pixel_size):
